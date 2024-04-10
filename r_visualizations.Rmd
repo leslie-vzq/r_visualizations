@@ -1,0 +1,449 @@
+---
+title: "Visualization in R"
+author: "Leslie Vazquez Moreno"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Loading in Data
+
+```{r}
+setwd("~/Desktop/Projects in R/r_visualizations/")
+# Data 1
+# US minimum wage by state from 1968 to 2020
+min_wage <- read.csv("Minimum Wage Data.csv")
+
+# Data 2
+nba_stat <- read.csv("2021-2022 NBA Player Stats.csv")
+
+# Data 3
+# Coffee/Tea locations that are in the United States
+directory <- read.csv("directory.csv")
+
+# Data 4
+# housing price and description
+housing_data <- read.csv("Housing.csv")
+```
+
+# Graphing Visualizations
+
+```{r, message = FALSE}
+library(tidyverse)
+```
+
+## Data 1
+
+```{r}
+ca_min_wage <- min_wage %>%
+  filter(State == "California") %>%
+  select(Year, State.Minimum.Wage) 
+ggplot(ca_min_wage) +
+  geom_line(aes(x = Year,
+                y = State.Minimum.Wage),
+            color = "#009E73") +
+  labs(title = "California Minimum Wage from 1968 to 2020",
+       y = "CA Minimum Wage(in US Dollars)")
+```
+
+## Data 2
+
+```{r}
+# histogram for the `MP` (minutes played per game) variable with 20 categories/bins
+hist(nba_stat$MP,
+     breaks = 20,
+     col = "#0072B2",
+     main = "NBA Game Time Frequency",
+     xlab = "Minutes Played Per Game")
+```
+
+```{r}
+# side-by-side boxplots of the `MP` variable broken up by `Pos` (the different positions)
+boxplot(nba_stat$MP ~ nba_stat$Pos,
+        xlab = "Positions",
+        ylab = "Minutes Played Per Game",
+        main = "NBA Position Play Times",
+        col = c("#D55E00", 
+                "#009E73", 
+                "#0072B2",
+                "#CC79A7",
+                "#F0E442"))
+```
+
+```{r}
+# histogram be for the `PTS` (points scored per game) variable
+hist(nba_stat$PTS,
+     border = "midnightblue",
+     labels = TRUE,
+     main = "Frequency of Points Scored Per NBA Game",
+     ylim = c(0, 125),
+     col = "light blue",
+     xlab = "Points Scored Per Game")
+```
+
+```{r}
+# scatter plot of the `PTS` variable and the `Age` variable
+plot(nba_stat$PTS, nba_stat$Age,
+     xlab = "Points Scored Per Game",
+     ylab = "Age",
+     main = "Age Vs Points Scored Per Game")
+```
+
+
+```{r}
+# histogram of G
+plot(nba_stat$G,
+     xlab = "Number of Games Played",
+     ylab = "Frequency",
+     main = "Frequency of Number of Games Played",
+     ylim = c(0, 55))
+abline(v = mean(nba_stat$G), 
+       col = "#D55E00", 
+       lty = 1,
+       lwd = 2)
+abline(v = median(nba_stat$G), 
+       col= "#0072B2", 
+       lty = 1,
+       lwd = 2)
+abline(v = nba_stat$G[nba_stat$Player == "Cat Barber"], 
+       col= "#009E73", 
+       lty = 1,
+       lwd = 2)
+legend(x = "top",
+       legend = c("Mean of Number of Games Played", 
+                  "Median of Number of Games Played",
+                  "Cat Barber's Number of Games Played"),
+       col = c("#D55E00", "#0072B2", "#009E73"),
+       lty = c(1, 1, 1),
+       lwd = c(2, 2, 2),
+       cex = 0.5)
+```
+
+```{r}
+# new data set that only contains players from the California NBA teams
+NBAcali <- nba_stat[nba_stat$Tm == "GSW" |
+                      nba_stat$Tm == "LAL" |
+                      nba_stat$Tm == "LAC" |
+                      nba_stat$Tm == "SAC", ]
+NBAcali <- NBAcali[order(NBAcali$PTS, NBAcali$G), ]
+```
+
+```{r}
+# identify outliers using the Z-score method
+# returns indices of outliers for that vector
+z_score_outlier <- function(vec){
+  outlier <- rep(NA,length(vec))
+  outlier <- ifelse(vec > mean(vec) + 2 * sd(vec) 
+                    | vec < mean(vec) - 2 * sd(vec), 
+                    which(vec == vec), 
+                    NA)
+  ifelse(all(is.na(outlier)), return(NA), return(as.numeric(na.omit(outlier))))
+}
+```
+
+
+```{r}
+# line plot for all the players in `NBAcali` 
+# x-axis is `PTS` and the y-axis is `G` (minutes played per game)
+plot(NBAcali$PTS, NBAcali$G,
+     xlab = "Points Scored Per Game",
+     ylab = "Game Time(in minutes)",
+     main = "Points Scored Per Game vs Game Time NBA CA")
+x_pts <- c(NBAcali$PTS)
+y_pts <- c(NBAcali$G[NBAcali$PTS == x_pts])
+lines(x_pts, y_pts,
+      col = "light blue",
+      lty = 1,
+      lwd = 2)
+x_pts2 <- c(NBAcali$PTS[NBAcali$Tm == "LAL"])
+y_pts2 <- c(NBAcali$G[NBAcali$Tm == "LAL"])
+lines(x_pts2, y_pts2,
+      col = "maroon",
+      lty = 3,
+      lwd = 3)
+legend(x = "bottomright",
+       legend = c("NBA CA", 
+                  "'LAL'"),
+       col = c("light blue", "maroon"),
+       lty = c(1, 3),
+       lwd = c(2, 3),
+       cex = 0.5)
+```
+
+
+```{r}
+# proportion of players that belong to the different categories for the `Pos` (position) 
+# variable in the for the full data set, and for the `NBAcali` data set
+total <- length(NBAcali$Pos)
+NBA_Pos <- c(nrow(nba_stat[nba_stat$Pos == "SG", ]),
+             nrow(nba_stat[nba_stat$Pos == "PF", ]),
+             nrow(nba_stat[nba_stat$Pos == "C", ]),
+             nrow(nba_stat[nba_stat$Pos == "SF", ]),
+             nrow(nba_stat[nba_stat$Pos == "PG", ]))
+NBA_Pos <- NBA_Pos / total
+
+total2 <- length(NBAcali$Pos)
+NBAcaliPos <- c(nrow(NBAcali[NBAcali$Pos == "SG", ]),
+                nrow(NBAcali[NBAcali$Pos == "PF", ]),
+                nrow(NBAcali[NBAcali$Pos == "C", ]),
+                nrow(NBAcali[NBAcali$Pos == "SF", ]),
+                nrow(NBAcali[NBAcali$Pos == "PG", ]))
+NBAcaliPos <- NBAcaliPos / total2
+
+par(mfrow = c(1, 2))
+barplot(NBA_Pos,
+        col = "dark blue",
+        main = "Position Proportions: NBA",
+        names.arg = c("SG", "PF", "C", "SF", "PG"),
+        xlab = "Positions",
+        ylab = "Proportion in the NBA")
+barplot(NBAcaliPos,
+        ylim = c(0, 2),
+        col = "dark green",
+        main = "Position Proportions: CA NBA",
+        names.arg = c("SG", "PF", "C", "SF", "PG"),
+        xlab = "Positions",
+        ylab = "Proportion in the CA NBA")
+```
+
+
+```{r}
+# scatter plot for all of the players in the full data set 
+# x-axis is `Age` and the y-axis is `FT` (free throws per game). 
+z_score_outlier <- function(vec){
+  outlier <- rep(NA,length(vec))
+  outlier <- ifelse(vec > mean(vec) + 2 * sd(vec) 
+                    | vec < mean(vec) - 2 * sd(vec), 
+                    which(vec == vec), 
+                    NA)
+  ifelse(all(is.na(outlier)), return(NA), return(as.numeric(na.omit(outlier))))
+}
+
+age_outlier <- z_score_outlier(nba_stat$Age)
+ft_outlier <- z_score_outlier(nba_stat$FT)
+
+# setdiff() in the first object but not the second
+only_age <- setdiff(age_outlier, ft_outlier)
+only_ft <- setdiff(ft_outlier, age_outlier)
+# union() in either or both objects
+all_outliers <- union(age_outlier, ft_outlier)
+# intersect() only those in both objects
+both_outliers <- intersect(age_outlier, ft_outlier)
+
+plot(nba_stat$Age, nba_stat$FT,
+     main = "NBA Free Throws vs Age",
+     xlab = "Age",
+     ylab = "Free Throws Per Game")
+
+points(nba_stat$Age[only_age],
+       nba_stat$FT[only_age],
+       col = "#009E73",
+       pch = 8,
+       cex = 2)
+points(nba_stat$Age[only_ft],
+       nba_stat$FT[only_ft],
+       col = "#D55E00",
+       pch = 8,
+       cex = 2)
+points(nba_stat$Age[-all_outliers],
+       nba_stat$FT[-all_outliers],
+       col = "#0072B2",
+       pch = 8,
+       cex = 2)
+points(nba_stat$Age[both_outliers],
+       nba_stat$FT[both_outliers],
+       col = "#CC79A7",
+       pch = 8,
+       cex = 2)
+legend(x = "topright",
+       legend = c("Age Outliers", "Free Throws Per Game Outliers", 
+                  "Age and Free Throws Per Game Outliers", "Not Outliers"),
+       col = c("#009E73", "#D55E00", "#CC79A7", "#0072B2"),
+       pch = c(8, 8, 8, 8),
+       pt.cex = c(1, 1, 1, 1),
+       cex = 0.6)
+```
+
+
+## Data 3
+
+
+```{r}
+# only starbucks locations in the US
+usa_starbucks <- directory %>%
+  filter(Brand == "Starbucks",
+         Country == "US")
+
+# only contains the Starbucks locations that are in the state of California
+ca_starbucks <- directory %>%
+  filter(Brand == "Starbucks",
+         State.Province == "CA",
+         Country == "US")
+```
+
+
+```{r}
+# each row corresponds to a city in the `ca_starbucks` tibble, and has the following columns:
+#  - (arithmetic) mean longitude values for the given city
+#  - (arithmetic) mean latitude values for the given city 
+#  - total number of Starbucks locations for the given city. 
+# from most locations (first row) to least locations (last row) for the given city
+ca_table = ca_starbucks %>%
+  group_by(City) %>%
+  summarize("Longitude Mean" = mean(Longitude),
+         "Latitude Mean" = mean(Latitude),
+         total = length(Brand == "Starbucks")) %>%
+  arrange(desc(total)) %>%
+  rename("Total Starbucks Locations" = total)
+knitr::kable(head(ca_table))
+```
+
+```{r}
+# each row corresponds to a state in the `usa_starbucks` tibble, and has the following columns:
+#  - City name for the most amount of Starbucks locations in the state. 
+#  - (arithmetic) mean longitude values for the given city
+#  - (arithmetic) mean latitude values for the given city 
+#  - total number of Starbucks locations for the given city
+max_city <- usa_starbucks %>%
+  group_by(City, State.Province) %>%
+  mutate(count = length(Brand=="Starbucks")) %>%
+  arrange(State.Province, desc(count)) %>%
+  group_by(State.Province) %>%
+  filter(count == max(count)) %>%
+  reframe("City Name" = City,
+            "Longitude Mean" = mean(Longitude),
+            "Latitude Mean" = mean(Latitude),
+            "Total Starbucks Locations" = count) %>%
+  distinct()
+knitr::kable(head(max_city))
+```
+
+```{r}
+# dodged barplot to compare the `OwnershipType` between `USA` and 2 other countries
+countries <- directory %>%
+  filter(Country == "US" | Country == "AR" | Country == "JP")
+ggplot(countries) + 
+  geom_bar(mapping = aes(x = Ownership.Type,
+                         group = Country,
+                         fill = Country),
+           position = "dodge") +
+  labs(x = "Ownership Type",
+       y = "Count",
+       title = "Comparing Ownership by Country")
+```
+
+## Data 4
+
+```{r}
+# new column, `price100` is `price` in 100,000's
+housing_data <- housing_data %>%
+  mutate(price100 = (price/100000)) %>%
+  arrange(bedrooms)
+```
+
+
+```{r}
+# scatter plot for `area` and `price100`
+ggplot(housing_data) +
+  geom_point(mapping = aes(x = area,
+                           y = price100,
+                           color = prefarea,
+                           shape = mainroad)) +
+  labs(x = "Area",
+       y = "Price (in 100,000's)",
+       title = "Housing",
+       color = "Preferred Area",
+       shape = "Mainroad")
+```
+
+```{r}
+# row: corresponds to a different combination of values for `bedrooms` and `bathrooms`
+# columns:
+#  - (arithmetic) mean `price100` 
+#  - (arithmetic) mean `area` 
+#  - total number of observations 
+#  - number of observations that have both `hotwaterheating` and `airconditioning`
+combo_bed_bath = housing_data %>%
+  group_by(bedrooms, bathrooms) %>%
+  summarize("price100 Mean" = mean(price100),
+            "Area Mean" = mean(area),
+            "Total" = n(),
+            "Hot Water Heating and Air Conditioning" = 
+              length(which(hotwaterheating == "yes" & airconditioning == "yes"))) 
+knitr::kable(head(combo_bed_bath))
+```
+
+```{r}
+# all observations that have either a `guestroom` OR a `basement` (or both).
+# `area`, `prefarea`, `parking` and `furnishingstatus`
+# Arranged by `prefarea` and then by `parking` (big to small)
+guest_or_base <- housing_data %>%
+  filter(guestroom == "yes" | basement == "yes") %>%
+  select(area, prefarea, parking, furnishingstatus) %>%
+  arrange(desc(prefarea), desc(parking))
+knitr::kable(head(guest_or_base))
+```
+
+
+```{r}
+# compare the distribution of `price100` for different `furnishingstatus`
+ggplot(housing_data) +
+  geom_density(mapping = aes(x = price100,
+                            color = furnishingstatus)) +
+  scale_color_brewer(palette = "Pastel2") +
+  labs(x = "Price (in 100,000's)",
+       y = "Density",
+       title = "Distribution of Price by Furnishing Status",
+       color = "Furnishing Status")
+```
+
+
+```{r}
+# boxplot for `price` variable across the different amounts of `bedrooms`
+ggplot(housing_data) +
+geom_boxplot(mapping = aes(x = price,
+                           y = factor(bedrooms))) + 
+  scale_fill_brewer(palette = "Spectral") +
+  labs(x = "Price",
+       y = "Bedrooms",
+       title = "Price Across Number of Bedrooms")
+```
+
+
+```{r, warning = FALSE}
+# preferred area, both furnished, and have at least one parking space
+# bar plot of the proportion of number of `bedrooms` for each `stories`
+housing_pref <- housing_data %>%
+  filter(prefarea == "yes" & furnishingstatus == "furnished" & parking >= 1) %>%
+  count(stories, bedrooms) %>%
+  group_by(stories) %>%
+  mutate(prop = n / sum(n))
+ggplot(housing_pref) +
+  geom_bar(mapping = aes(x = stories,
+                         y = stat(housing_pref$prop),
+                         group = bedrooms,
+                         fill = bedrooms),
+           position = "dodge", stat = "identity") +
+  labs(x = "Stories",
+       y = "Proportion of Bedrooms",
+       title = "Proportion of Bedroom Number Across Stories",
+       fill = "Bedrooms")
+```
+
+```{r}
+# relationship between `mainroad`,`prefarea`, `price100`, `parking`, and stories
+ggplot() +
+  geom_point(data = housing_data, 
+             mapping = aes(x = price100,
+                           y = parking,
+                           color = mainroad,
+                           shape = prefarea)) +
+  facet_wrap(~stories) +
+  labs(x = "Price (in 100,000's)",
+       y = "Parking",
+       shape = "Preferred Area",
+       color = "Mainroad")
+```
+
